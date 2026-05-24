@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>天津一中三国杀 - 后台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        .card{background-color:white;border-radius:0.75rem;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);padding:1.5rem}
+        .card-login{background-color:white;border-radius:0.75rem;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);padding:2rem;max-width:28rem;margin:0 auto}
+        .card-title{font-size:1.25rem;font-weight:600;color:#374151;margin-bottom:1.5rem}
+        .card-title-sm{font-size:1.25rem;font-weight:600;color:#374151;margin-bottom:1rem}
+        .form-label{display:block;font-size:0.875rem;font-weight:500;color:#374151;margin-bottom:0.25rem}
+        .form-input{width:100%;padding:0.5rem 1rem;border:1px solid #d1d5db;border-radius:0.5rem}
+        .form-input:focus{outline:none;box-shadow:0 0 0 2px #3b82f6;border-color:transparent}
+        .btn{padding:0.5rem 1rem;border-radius:0.5rem;font-weight:500;transition:all 0.2s}
+        .btn-blue{background-color:#3b82f6;color:white}
+        .btn-blue:hover{background-color:#2563eb}
+        .btn-red{background-color:#ef4444;color:white}
+        .btn-red:hover{background-color:#dc2626}
+        .btn-green{background-color:#22c55e;color:white}
+        .btn-green:hover{background-color:#16a34a}
+        .btn-primary{width:100%;background-color:#2563eb;color:white;font-weight:600;padding:0.75rem 1.5rem;border-radius:0.5rem;transition:background-color 0.2s}
+        .btn-primary:hover{background-color:#1d4ed8}
+        .btn-cancel{padding:0.5rem 1rem;border:1px solid #d1d5db;border-radius:0.5rem;color:#374151}
+        .btn-cancel:hover{background-color:#f9fafb}
+        .modal-overlay{position:fixed;inset:0;background-color:rgb(0 0 0 / 0.5);display:flex;align-items:center;justify-content:center}
+        .modal-content{background-color:white;border-radius:0.75rem;padding:1.5rem;max-width:32rem;width:100%;margin:0 1rem}
+        .modal-content-sm{background-color:white;border-radius:0.75rem;padding:1.5rem;max-width:28rem;width:100%;margin:0 1rem}
+        .modal-actions{display:flex;justify-content:flex-end;gap:1rem;padding-top:1rem}
+        .table-cell{padding:0.75rem 1rem}
+        .table-header{padding:0.75rem 1rem;font-size:0.875rem;font-weight:500;color:#4b5563;border-bottom:1px solid #e5e7eb}
+        .table-row{border-bottom:1px solid #e5e7eb}
+        .table-row:hover{background-color:#f9fafb}
+        .status-badge{padding:0.25rem 0.5rem;font-size:0.75rem;border-radius:9999px}
+        .status-on{background-color:#dcfce7;color:#15803d}
+        .status-off{background-color:#f3f4f6;color:#374151}
+        .required{color:#ef4444}
+        .page-title{font-size:1.875rem;font-weight:700;color:#1f2937}
+        .header-actions{display:flex;gap:0.75rem}
+        .tab-bar{display:flex;gap:1rem;margin-bottom:1.5rem;border-bottom:1px solid #e5e7eb}
+        .tab-btn{padding:0.75rem 1.5rem;font-weight:500}
+        .tab-btn.active{color:#2563eb;border-bottom:2px solid #2563eb}
+        .tab-btn.inactive{color:#6b7280}
+        .tab-btn.inactive:hover{color:#374151}
+        .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+        .filter-bar{display:flex;gap:1rem}
+        .link-btn{color:#2563eb}
+        .link-btn:hover{color:#1d4ed8}
+        .link-btn.red{color:#dc2626}
+        .link-btn.red:hover{color:#b91c1c}
+        .detail-row{margin-bottom:0.5rem}
+        .detail-label{font-weight:500}
+        .detail-section{padding-top:0.5rem;border-top:1px solid #e5e7eb}
+        .detail-total{margin-top:0.5rem;text-align:right;font-weight:600;color:#dc2626}
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="page-title">天津一中三国杀武将卡牌订购系统后台</h1>
+            <div class="header-actions">
+                <button id="change-password-btn" class="btn btn-blue hidden">更改密码</button>
+                <button id="logout-btn" class="btn btn-red hidden">退出登录</button>
+            </div>
+        </div>
+
+        <div id="login-section" class="card-login">
+            <h2 class="card-title text-center">管理员登录</h2>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="form-label">邮箱</label>
+                    <input type="email" id="login-email" required class="form-input">
+                </div>
+                <div>
+                    <label class="form-label">密码</label>
+                    <input type="password" id="login-password" required class="form-input">
+                </div>
+                <button type="submit" class="btn-primary">登录</button>
+            </form>
+        </div>
+
+        <div id="admin-section" class="hidden">
+            <div class="tab-bar">
+                <button id="tab-products" class="tab-btn active">商品管理</button>
+                <button id="tab-orders" class="tab-btn inactive">订单管理</button>
+                <button id="tab-add-admin" class="tab-btn inactive hidden">加新管理员</button>
+            </div>
+
+            <div id="products-area" class="card">
+                <div class="section-header">
+                    <h2 class="card-title-sm">商品列表</h2>
+                    <button id="add-product-btn" class="btn btn-green">+ 新增商品</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="table-header">商品图片</th>
+                                <th class="table-header">商品名</th>
+                                <th class="table-header">单价</th>
+                                <th class="table-header">状态</th>
+                                <th class="table-header">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="products-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="orders-area" class="card hidden">
+                <div class="section-header">
+                    <h2 class="card-title-sm">订单列表</h2>
+                    <div class="filter-bar">
+                        <select id="status-filter" class="form-input">
+                            <option value="">全部状态</option>
+                            <option value="待处理">待处理</option>
+                            <option value="处理中">处理中</option>
+                            <option value="已完成">已完成</option>
+                        </select>
+                        <button id="export-excel-btn" class="btn btn-blue" style="min-width:7rem">导出Excel</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="table-header">提交时间</th>
+                                <th class="table-header">姓名</th>
+                                <th class="table-header">班级</th>
+                                <th class="table-header">联系方式</th>
+                                <th class="table-header">总金额</th>
+                                <th class="table-header">状态</th>
+                                <th class="table-header">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="add-admin-area" class="card hidden">
+                <h2 class="card-title">添加新管理员</h2>
+                <p class="text-sm text-gray-500 mb-4">⚠️ 只有超级管理员能看到此页面，新管理员账号需先在Supabase后台手动创建</p>
+                <form id="add-admin-form" class="space-y-4 max-w-md">
+                    <div>
+                        <label class="form-label">新管理员的User UID（从Supabase后台Authentication→Users里复制）</label>
+                        <input type="text" id="new-admin-uid" required class="form-input">
+                    </div>
+                    <button type="submit" class="btn-primary" style="background-color:#22c55e">添加为管理员</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="product-modal" class="modal-overlay hidden z-50">
+            <div class="modal-content">
+                <h3 id="modal-title" class="card-title">新增商品</h3>
+                <form id="product-form" class="space-y-4">
+                    <input type="hidden" id="edit-product-id">
+                    <div>
+                        <label class="form-label">商品名 <span class="required">*</span></label>
+                        <input type="text" id="product-name" required class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">商品图片</label>
+                        <input type="file" id="product-image" accept="image/*" class="form-input">
+                        <p id="current-image-url" class="text-sm text-gray-500 mt-1"></p>
+                    </div>
+                    <div>
+                        <label class="form-label">单价 <span class="required">*</span></label>
+                        <input type="number" id="product-price" step="0.01" required class="form-input">
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="product-is-on-sale" class="w-4 h-4 text-blue-600 rounded">
+                        <label for="product-is-on-sale" class="ml-2 text-sm text-gray-700">显示</label>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" id="close-modal-btn" class="btn-cancel">取消</button>
+                        <button type="submit" class="btn btn-blue">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="order-modal" class="modal-overlay hidden z-50">
+            <div class="modal-content">
+                <h3 class="card-title">订单详情</h3>
+                <div id="order-detail-content" class="space-y-3">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="close-order-modal-btn" class="btn-cancel">关闭</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="change-password-modal" class="modal-overlay hidden z-50">
+            <div class="modal-content-sm">
+                <h3 class="card-title">更改密码</h3>
+                <form id="change-password-form" class="space-y-4">
+                    <div>
+                        <label class="form-label">旧密码 <span class="required">*</span></label>
+                        <input type="password" id="old-password" required class="form-input" placeholder="输入当前密码">
+                    </div>
+                    <div>
+                        <label class="form-label">新密码 <span class="required">*</span></label>
+                        <input type="password" id="new-password" required minlength="6" class="form-input" placeholder="至少6位">
+                    </div>
+                    <div>
+                        <label class="form-label">确认新密码 <span class="required">*</span></label>
+                        <input type="password" id="confirm-password" required minlength="6" class="form-input" placeholder="再次输入新密码">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" id="close-password-modal-btn" class="btn-cancel">取消</button>
+                        <button type="submit" class="btn btn-blue">确认更改</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const supabaseUrl = "https://zyllxypawmkqvejlwsci.supabase.co";
+        const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bGx4eXBhd21rcXZlamx3c2NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4OTU4MTIsImV4cCI6MjA5MzQ3MTgxMn0.NDqR_2dtA3CPEMcyZwBLzLonIj6yYzUX7vptvMy383o";
+        const SUPER_ADMIN_UID = "959d7c1c-11c2-47ad-a757-891f62be9207";
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        let currentUser = null;
+        let currentTab = 'products';
+
+        // ===================== 2. 页面加载时检查登录状态 =====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                showAdminSection();
+            } else {
+                showLoginSection();
+            }
+
+            // 监听登录状态变化
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                if (session) {
+                    currentUser = session.user;
+                    showAdminSection();
+                } else {
+                    currentUser = null;
+                    showLoginSection();
+                }
+            });
+
+            // 绑定事件
+            bindEvents();
+        });
+
+        // ===================== 3. 显示/隐藏区域 =====================
+        function showLoginSection() {
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('admin-section').classList.add('hidden');
+            document.getElementById('logout-btn').classList.add('hidden');
+            document.getElementById('change-password-btn').classList.add('hidden');
+        }
+
+        function showAdminSection() {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('admin-section').classList.remove('hidden');
+            document.getElementById('logout-btn').classList.remove('hidden');
+            document.getElementById('change-password-btn').classList.remove('hidden');
+
+            if (currentUser.id === SUPER_ADMIN_UID) {
+                document.getElementById('tab-add-admin').classList.remove('hidden');
+            }
+
+            loadProducts();
+        }
+
+        // ===================== 4. 绑定所有事件 =====================
+        function bindEvents() {
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+            document.getElementById('tab-products').addEventListener('click', () => switchTab('products'));
+            document.getElementById('tab-orders').addEventListener('click', () => switchTab('orders'));
+            document.getElementById('tab-add-admin').addEventListener('click', () => switchTab('add-admin'));
+            document.getElementById('add-product-btn').addEventListener('click', openAddProductModal);
+            document.getElementById('product-form').addEventListener('submit', handleSaveProduct);
+            document.getElementById('close-modal-btn').addEventListener('click', closeProductModal);
+            document.getElementById('status-filter').addEventListener('change', loadOrders);
+            document.getElementById('export-excel-btn').addEventListener('click', exportToExcel);
+            document.getElementById('close-order-modal-btn').addEventListener('click', closeOrderModal);
+            document.getElementById('add-admin-form').addEventListener('submit', handleAddAdmin);
+            document.getElementById('change-password-btn').addEventListener('click', openChangePasswordModal);
+            document.getElementById('change-password-form').addEventListener('submit', handleChangePassword);
+            document.getElementById('close-password-modal-btn').addEventListener('click', closeChangePasswordModal);
+        }
+
+        // ===================== 5. 登录/登出 =====================
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+                alert('登录失败：' + error.message);
+            }
+        }
+
+        async function handleLogout() {
+            await supabaseClient.auth.signOut();
+        }
+
+        function openChangePasswordModal() {
+            document.getElementById('change-password-form').reset();
+            document.getElementById('change-password-modal').classList.remove('hidden');
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('change-password-modal').classList.add('hidden');
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            const oldPassword = document.getElementById('old-password').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            const { error: verifyError } = await supabaseClient.auth.signInWithPassword({
+                email: currentUser.email,
+                password: oldPassword
+            });
+            if (verifyError) {
+                alert('旧密码错误！');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                alert('两次输入的密码不一致！');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                alert('密码长度至少6位！');
+                return;
+            }
+
+            if (oldPassword === newPassword) {
+                alert('新密码不能与旧密码相同！');
+                return;
+            }
+
+            const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+            if (error) {
+                alert('更改密码失败：' + error.message);
+                return;
+            }
+
+            alert('密码更改成功！请使用新密码重新登录。');
+            closeChangePasswordModal();
+            await supabaseClient.auth.signOut();
+        }
+
+        // ===================== 6. 标签页切换 =====================
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('inactive');
+            });
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.remove('inactive');
+
+            document.getElementById('products-area').classList.add('hidden');
+            document.getElementById('orders-area').classList.add('hidden');
+            document.getElementById('add-admin-area').classList.add('hidden');
+            document.getElementById(`${tab}-area`).classList.remove('hidden');
+
+            if (tab === 'products') loadProducts();
+            if (tab === 'orders') loadOrders();
+        }
+
+        // ===================== 7. 商品管理 =====================
+        async function loadProducts() {
+            const { data, error } = await supabaseClient
+                .from('products')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                alert('加载商品失败：' + error.message);
+                return;
+            }
+
+            // 渲染商品列表
+            const tbody = document.getElementById('products-table-body');
+            tbody.innerHTML = data.map(product => `
+                <tr class="table-row">
+                    <td class="table-cell">
+                        ${product.image_url 
+                            ? `<img src="${product.image_url}" alt="${product.name}" class="w-16 h-16 object-cover rounded">`
+                            : '<span class="text-gray-400">无图</span>'
+                        }
+                    </td>
+                    <td class="table-cell font-medium">${product.name}</td>
+                    <td class="table-cell text-red-600 font-semibold">¥${product.price.toFixed(2)}</td>
+                    <td class="table-cell">
+                        <span class="status-badge ${product.displayed ? 'status-on' : 'status-off'}">
+                            ${product.displayed ? '显示' : '不显示'}
+                        </span>
+                    </td>
+                    <td class="table-cell">
+                        <button class="link-btn mr-3" onclick="openEditProductModal(${product.id})">编辑</button>
+                        <button class="link-btn red" onclick="deleteProduct(${product.id})">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openAddProductModal() {
+            document.getElementById('modal-title').textContent = '新增商品';
+            document.getElementById('product-form').reset();
+            document.getElementById('edit-product-id').value = '';
+            document.getElementById('current-image-url').textContent = '';
+            document.getElementById('product-is-on-sale').checked = true;
+            document.getElementById('product-modal').classList.remove('hidden');
+        }
+
+        async function openEditProductModal(productId) {
+            const { data, error } = await supabaseClient.from('products').select('*').eq('id', productId).single();
+            if (error) {
+                alert('加载商品失败：' + error.message);
+                return;
+            }
+
+            document.getElementById('modal-title').textContent = '编辑商品';
+            document.getElementById('edit-product-id').value = productId;
+            document.getElementById('product-name').value = data.name;
+            document.getElementById('product-price').value = data.price;
+            document.getElementById('product-is-on-sale').checked = data.displayed;
+            document.getElementById('current-image-url').textContent = data.image_url ? '当前图片：已有' : '当前图片：无';
+            document.getElementById('product-modal').classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
+        }
+
+        async function handleSaveProduct(e) {
+            e.preventDefault();
+            const productId = document.getElementById('edit-product-id').value;
+            const name = document.getElementById('product-name').value;
+            const price = parseFloat(document.getElementById('product-price').value);
+            const isDisplayed = document.getElementById('product-is-on-sale').checked;
+            const imageFile = document.getElementById('product-image').files[0];
+
+            let imageUrl = null;
+
+            // 如果上传了新图片，先上传到Storage
+            if (imageFile) {
+                const fileExt = imageFile.name.split('.').pop();
+                const fileName = `${Date.now()}.${fileExt}`;
+                const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                    .from('product-images')
+                    .upload(fileName, imageFile);
+
+                if (uploadError) {
+                    alert('上传图片失败：' + uploadError.message);
+                    return;
+                }
+
+                const { data: { publicUrl } } = supabaseClient.storage
+                    .from('product-images')
+                    .getPublicUrl(fileName);
+                imageUrl = publicUrl;
+            }
+
+            const productData = {
+                name: name,
+                price: price,
+                displayed: isDisplayed
+            };
+            if (imageUrl) productData.image_url = imageUrl;
+
+            let result;
+            if (productId) {
+                result = await supabaseClient.from('products').update(productData).eq('id', productId);
+            } else {
+                result = await supabaseClient.from('products').insert([productData]);
+            }
+
+            if (result.error) {
+                alert('保存商品失败：' + result.error.message);
+                return;
+            }
+
+            alert('保存成功！');
+            closeProductModal();
+            loadProducts();
+        }
+
+        async function deleteProduct(productId) {
+            if (!confirm('确定要删除这个商品吗？')) return;
+            const { error } = await supabaseClient.from('products').delete().eq('id', productId);
+            if (error) {
+                alert('删除失败：' + error.message);
+                return;
+            }
+            alert('删除成功！');
+            loadProducts();
+        }
+
+        // ===================== 8. 订单管理 =====================
+        async function loadOrders() {
+            const statusFilter = document.getElementById('status-filter').value;
+            let query = supabaseClient.from('purchase_orders').select('*').order('created_at', { ascending: false });
+            if (statusFilter) {
+                query = query.eq('status', statusFilter);
+            }
+
+            const { data, error } = await query;
+            if (error) {
+                alert('加载订单失败：' + error.message);
+                return;
+            }
+
+            // 渲染订单列表
+            const tbody = document.getElementById('orders-table-body');
+            tbody.innerHTML = data.map(order => `
+                <tr class="table-row">
+                    <td class="table-cell">${new Date(order.created_at).toLocaleString()}</td>
+                    <td class="table-cell font-medium">${order.name}</td>
+                    <td class="table-cell text-gray-600">${order.class || '-'}</td>
+                    <td class="table-cell">${order.information || '-'}</td>
+                    <td class="table-cell text-red-600 font-semibold">¥${order.price.toFixed(2)}</td>
+                    <td class="table-cell">
+                        <select class="form-input text-sm" style="padding:0.25rem 0.5rem" onchange="updateOrderStatus(${order.id}, this.value)">
+                            <option value="待处理" ${order.status === '待处理' ? 'selected' : ''}>待处理</option>
+                            <option value="处理中" ${order.status === '处理中' ? 'selected' : ''}>处理中</option>
+                            <option value="已完成" ${order.status === '已完成' ? 'selected' : ''}>已完成</option>
+                        </select>
+                    </td>
+                    <td class="table-cell">
+                        <button class="link-btn mr-3" onclick="openOrderDetailModal(${order.id})">查看详情</button>
+                        <button class="link-btn red" onclick="deleteOrder(${order.id})">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function updateOrderStatus(orderId, newStatus) {
+            const { error } = await supabaseClient.from('purchase_orders').update({ status: newStatus }).eq('id', orderId);
+            if (error) {
+                alert('更新状态失败：' + error.message);
+                loadOrders();
+                return;
+            }
+        }
+
+        async function deleteOrder(orderId) {
+            if (!confirm('确定要删除这个订单吗？')) return;
+            const { error } = await supabaseClient.from('purchase_orders').delete().eq('id', orderId);
+            if (error) {
+                alert('删除失败：' + error.message);
+                return;
+            }
+            alert('删除成功！');
+            loadOrders();
+        }
+
+        async function openOrderDetailModal(orderId) {
+            const { data, error } = await supabaseClient.from('purchase_orders').select('*').eq('id', orderId).single();
+            if (error) {
+                alert('加载详情失败：' + error.message);
+                return;
+            }
+
+            // 渲染详情
+            const contentDiv = document.getElementById('order-detail-content');
+            contentDiv.innerHTML = `
+                <div class="detail-row"><span class="detail-label">提交时间：</span>${new Date(data.created_at).toLocaleString()}</div>
+                <div class="detail-row"><span class="detail-label">姓名：</span>${data.name}</div>
+                <div class="detail-row"><span class="detail-label">班级：</span>${data.class || '-'}</div>
+                <div class="detail-row"><span class="detail-label">联系方式：</span>${data.information || '-'}</div>
+                <div class="detail-row"><span class="detail-label">备注：</span>${data.remark || '-'}</div>
+                <div class="detail-row"><span class="detail-label">状态：</span>${data.status}</div>
+                <div class="detail-section">
+                    <div class="detail-label mb-2">选中商品：</div>
+                    <div class="space-y-1">
+                        ${data.products.map(p => `
+                            <div class="flex justify-between text-sm">
+                                <span>${p.name} × ${p.quantity}</span>
+                                <span>¥${(p.price * p.quantity).toFixed(2)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="detail-total">
+                        总金额：¥${data.price.toFixed(2)}
+                    </div>
+                </div>
+            `;
+            document.getElementById('order-modal').classList.remove('hidden');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('order-modal').classList.add('hidden');
+        }
+
+        async function exportToExcel() {
+            const statusFilter = document.getElementById('status-filter').value;
+            let query = supabaseClient.from('purchase_orders').select('*').order('created_at', { ascending: false });
+            if (statusFilter) {
+                query = query.eq('status', statusFilter);
+            }
+
+            const { data, error } = await query;
+            if (error) {
+                alert('导出失败：' + error.message);
+                return;
+            }
+
+            // 整理Excel数据
+            const excelData = data.map(order => ({
+                '提交时间': new Date(order.created_at).toLocaleString(),
+                '联系人': order.name,
+                '班级': order.class || '',
+                '联系方式': order.information || '',
+                '总金额': order.price,
+                '状态': order.status,
+                '备注': order.remark || '',
+                '选中商品': order.products.map(p => `${p.name}×${p.quantity}`).join('; ')
+            }));
+
+            // 生成Excel
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, '订单');
+            XLSX.writeFile(workbook, `订单_${new Date().toLocaleDateString()}.xlsx`);
+        }
+
+        // ===================== 9. 加新管理员（只有超级管理员能看到） =====================
+        async function handleAddAdmin(e) {
+            e.preventDefault();
+            const newAdminUid = document.getElementById('new-admin-uid').value.trim();
+            if (!newAdminUid) return alert('请输入新管理员的UID！');
+
+            const { error } = await supabaseClient.from('admin_users').insert([{ admin_uid: newAdminUid }]);
+            if (error) {
+                alert('添加失败：' + error.message);
+                return;
+            }
+
+            alert('添加成功！新管理员现在可以登录了！');
+            document.getElementById('add-admin-form').reset();
+        }
+    </script>
+</body>
+</html>

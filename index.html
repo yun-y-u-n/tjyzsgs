@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>天津一中三国杀</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .card{background-color:white;border-radius:0.75rem;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);padding:1.5rem}
+        .card-title{font-size:1.25rem;font-weight:600;color:#374151;margin-bottom:1rem}
+        .form-label{display:block;font-size:0.875rem;font-weight:500;color:#374151;margin-bottom:0.25rem}
+        .form-input{width:100%;padding:0.5rem 1rem;border:1px solid #d1d5db;border-radius:0.5rem}
+        .form-input:focus{outline:none;box-shadow:0 0 0 2px #3b82f6;border-color:transparent}
+        .btn-primary{width:100%;background-color:#2563eb;color:white;font-weight:600;padding:0.75rem 1.5rem;border-radius:0.5rem;transition:background-color 0.2s}
+        .btn-primary:hover{background-color:#1d4ed8}
+        .btn-add{padding:0.5rem 1rem;border-radius:0.5rem;font-weight:500;transition:all 0.2s}
+        .btn-add.blue{background-color:#3b82f6;color:white}
+        .btn-add.blue:hover{background-color:#2563eb}
+        .btn-add.red{background-color:#ef4444;color:white}
+        .btn-add.red:hover{background-color:#dc2626}
+        .product-card{border:1px solid #e5e7eb;border-radius:0.5rem;padding:1rem;transition:box-shadow 0.2s}
+        .product-card:hover{box-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1)}
+        .product-img-box{width:100%;aspect-ratio:5/7;background-color:#f3f4f6;border-radius:0.5rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:center;overflow:hidden}
+        .product-name{font-size:1.125rem;font-weight:600;color:#1f2937;margin-bottom:0.25rem}
+        .product-price{font-size:1.25rem;font-weight:700;color:#dc2626;margin-bottom:0.75rem}
+        .qty-box{display:flex;align-items:center;border:1px solid #d1d5db;border-radius:0.5rem}
+        .qty-btn{padding:0.25rem 0.75rem;color:#4b5563}
+        .qty-btn:hover{background-color:#f3f4f6}
+        .qty-input{width:3rem;text-align:center;border-left:1px solid #d1d5db;border-right:1px solid #d1d5db;padding:0.25rem 0}
+        .preview-box{background-color:#f3f4f6;border-radius:0.5rem;padding:1rem}
+        .preview-title{font-size:0.875rem;font-weight:500;color:#374151;margin-bottom:0.5rem}
+        .preview-item{display:flex;justify-content:space-between;font-size:0.875rem;color:#374151}
+        .preview-total{margin-top:0.5rem;color:#dc2626;text-align:right;font-weight:600}
+        .page-title{font-size:1.875rem;font-weight:700;text-align:center;color:#1f2937;margin-bottom:2rem}
+        .required{color:#ef4444}
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <h1 class="page-title">天津一中三国杀武将卡牌订购系统</h1>
+
+        <div class="card mb-8">
+            <h2 class="card-title">商品预览</h2>
+            <div id="product-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">信息填写</h2>
+            <form id="purchase-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">姓名<span class="required">*</span></label>
+                        <input type="text" id="contact-name" required class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">班级<span class="required">*</span></label>
+                        <input type="text" id="class-name" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">联系方式</label>
+                        <input type="tel" id="information" required class="form-input">
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">备注</label>
+                    <textarea id="remark" rows="3" class="form-input"></textarea>
+                </div>
+                <div id="selected-preview" class="preview-box hidden">
+                    <h3 class="preview-title">已选商品预览：</h3>
+                    <div id="selected-items" class="space-y-1"></div>
+                    <div class="preview-total">
+                        总金额：<span id="total-price">0.00</span> 元
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">提交</button>
+            </form>
+        </div>
+
+        <div class="text-center mt-8 text-gray-400 text-xs">
+            <a href="admin.html" class="hover:text-gray-600">进入后台</a>
+        </div>
+    </div>
+
+    <script>
+        const supabaseUrl = "https://zyllxypawmkqvejlwsci.supabase.co";
+        const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5bGx4eXBhd21rcXZlamx3c2NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4OTU4MTIsImV4cCI6MjA5MzQ3MTgxMn0.NDqR_2dtA3CPEMcyZwBLzLonIj6yYzUX7vptvMy383o";
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
+        let selectedProducts = [];
+
+        // ===================== 2. 页面加载时自动渲染商品列表 =====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadProducts();
+        });
+
+        // 加载上架的商品
+        async function loadProducts() {
+            const { data, error } = await supabaseClient
+                .from('products')
+                .select('*')
+                .eq('displayed', true)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                alert('加载商品失败：' + error.message);
+                return;
+            }
+
+            // 渲染商品列表
+            const productListDiv = document.getElementById('product-list');
+            productListDiv.innerHTML = data.map(product => `
+                <div class="product-card">
+                    <div class="product-img-box">
+                        ${product.image_url 
+                            ? `<img src="${product.image_url}" alt="${product.name}" class="w-full h-full object-cover">`
+                            : `<span class="text-gray-400">暂无图片</span>`
+                        }
+                    </div>
+                    <h3 class="product-name">${product.name}</h3>
+                    <p class="product-price">¥${product.price.toFixed(2)}</p>
+                    <div class="flex items-center justify-between">
+                        <div class="qty-box">
+                            <button type="button" class="qty-btn" onclick="changeQuantity(${product.id}, -1)">-</button>
+                            <input type="number" id="qty-${product.id}" value="1" min="1" class="qty-input" onchange="updateQuantity(${product.id})">
+                            <button type="button" class="qty-btn" onclick="changeQuantity(${product.id}, 1)">+</button>
+                        </div>
+                        <button type="button" id="btn-${product.id}" class="btn-add ${isSelected(product.id) ? 'red' : 'blue'}" onclick="toggleProduct(${product.id}, '${product.name}', ${product.price})">
+                            ${isSelected(product.id) ? '移除' : '加入'}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ===================== 3. 商品选择逻辑 =====================
+        // 检查商品是否已选中
+        function isSelected(productId) {
+            return selectedProducts.some(p => p.id === productId);
+        }
+
+        // 切换商品选中状态
+        function toggleProduct(productId, productName, productPrice) {
+            const qtyInput = document.getElementById(`qty-${productId}`);
+            const quantity = parseInt(qtyInput.value) || 1;
+
+            if (isSelected(productId)) {
+                // 移除商品
+                selectedProducts = selectedProducts.filter(p => p.id !== productId);
+            } else {
+                // 加入商品
+                selectedProducts.push({
+                    id: productId,
+                    name: productName,
+                    price: productPrice,
+                    quantity: quantity
+                });
+            }
+
+            // 更新按钮文字和样式
+            const btn = document.getElementById(`btn-${productId}`);
+            btn.textContent = isSelected(productId) ? '移除' : '加入';
+            btn.className = `btn-add ${isSelected(productId) ? 'red' : 'blue'}`;
+
+            updateSelectedPreview();
+        }
+
+        // 改变商品数量
+        function changeQuantity(productId, delta) {
+            const qtyInput = document.getElementById(`qty-${productId}`);
+            let newQty = parseInt(qtyInput.value) + delta;
+            if (newQty < 1) newQty = 1;
+            qtyInput.value = newQty;
+            updateQuantity(productId);
+        }
+
+        // 更新选中商品的数量
+        function updateQuantity(productId) {
+            const qtyInput = document.getElementById(`qty-${productId}`);
+            const newQty = parseInt(qtyInput.value) || 1;
+
+            if (isSelected(productId)) {
+                const product = selectedProducts.find(p => p.id === productId);
+                product.quantity = newQty;
+                updateSelectedPreview();
+            }
+        }
+
+        // 更新选中商品预览
+        function updateSelectedPreview() {
+            const previewDiv = document.getElementById('selected-preview');
+            const itemsDiv = document.getElementById('selected-items');
+            const totalPriceSpan = document.getElementById('total-price');
+
+            if (selectedProducts.length === 0) {
+                previewDiv.classList.add('hidden');
+                return;
+            }
+
+            previewDiv.classList.remove('hidden');
+            itemsDiv.innerHTML = selectedProducts.map(p => `
+                <div class="preview-item">
+                    <span>${p.name} × ${p.quantity}</span>
+                    <span>¥${(p.price * p.quantity).toFixed(2)}</span>
+                </div>
+            `).join('');
+
+            const totalPrice = selectedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0);
+            totalPriceSpan.textContent = totalPrice.toFixed(2);
+        }
+
+        // ===================== 4. 提交采购单 =====================
+        document.getElementById('purchase-form').addEventListener('submit', async (e) => {
+            e.preventDefault(); // 阻止表单默认刷新
+
+            if (selectedProducts.length === 0) {
+                alert('请至少选择一件商品！');
+                return;
+            }
+
+            // 收集表单数据
+            const contactName = document.getElementById('contact-name').value;
+            const information = document.getElementById('information').value;
+            const className = document.getElementById('class-name').value;
+            const remark = document.getElementById('remark').value;
+            const totalPrice = selectedProducts.reduce((sum, p) => sum + p.price * p.quantity, 0);
+
+            // 提交到Supabase
+            const { data, error } = await supabaseClient
+                .from('purchase_orders')
+                .insert([
+                    {
+                        name: contactName,
+                        information: information,
+                        class: className,
+                        products: selectedProducts,
+                        price: totalPrice,
+                        remark: remark
+                    }
+                ]);
+
+            if (error) {
+                alert('提交失败：' + error.message);
+                return;
+            }
+
+            // 提交成功，重置表单
+            alert('提交成功！');
+            document.getElementById('purchase-form').reset();
+            selectedProducts = [];
+            updateSelectedPreview();
+            await loadProducts(); 
+        });
+    </script>
+</body>
+</html>
