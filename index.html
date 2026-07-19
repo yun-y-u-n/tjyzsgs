@@ -42,7 +42,7 @@
 
         <div class="card mb-8">
             <h2 class="card-title">商品预览</h2>
-            <div id="product-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="product-list" class="space-y-6">
             </div>
         </div>
 
@@ -100,7 +100,7 @@
                 .from('products')
                 .select('*')
                 .eq('displayed', true)
-                .order('created_at', { ascending: false });
+                .order('label', { ascending: true });
 
             if (error) {
                 alert('加载商品失败：' + error.message);
@@ -109,25 +109,44 @@
 
             // 渲染商品列表
             const productListDiv = document.getElementById('product-list');
-            productListDiv.innerHTML = data.map(product => `
-                <div class="product-card">
-                    <div class="product-img-box">
-                        ${product.image_url 
-                            ? `<img src="${product.image_url}" alt="${product.name}" class="w-full h-full object-cover">`
-                            : `<span class="text-gray-400">暂无图片</span>`
-                        }
-                    </div>
-                    <h3 class="product-name">${product.name}</h3>
-                    <p class="product-price">¥${product.price.toFixed(2)}</p>
-                    <div class="flex items-center justify-between">
-                        <div class="qty-box">
-                            <button type="button" class="qty-btn" onclick="changeQuantity(${product.id}, -1)">-</button>
-                            <input type="number" id="qty-${product.id}" value="1" min="1" class="qty-input" onchange="updateQuantity(${product.id})">
-                            <button type="button" class="qty-btn" onclick="changeQuantity(${product.id}, 1)">+</button>
-                        </div>
-                        <button type="button" id="btn-${product.id}" class="btn-add ${isSelected(product.id) ? 'red' : 'blue'}" onclick="toggleProduct(${product.id}, '${product.name}', ${product.price})">
-                            ${isSelected(product.id) ? '移除' : '加入'}
-                        </button>
+            // 按 label 分组商品
+            const groupedProducts = {};
+            data.forEach(product => {
+                const label = product.label || '未分类';
+                if (!groupedProducts[label]) {
+                    groupedProducts[label] = [];
+                }
+                groupedProducts[label].push(product);
+            });
+
+            // 按label排序并渲染
+            const sortedLabels = Object.keys(groupedProducts).sort();
+            productListDiv.innerHTML = sortedLabels.map(label => `
+                <div class="col-span-full mb-4">
+                    <h3 class="text-lg font-bold text-gray-700 border-b-2 border-blue-500 pb-2 mb-4">${label}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${groupedProducts[label].map(product => `
+                            <div class="product-card">
+                                <div class="product-img-box">
+                                    ${product.image_url 
+                                        ? `<img src="${product.image_url}" alt="${product.name}" class="w-full h-full object-cover">`
+                                        : `<span class="text-gray-400">暂无图片</span>`
+                                    }
+                                </div>
+                                <h3 class="product-name">${product.name}</h3>
+                                <p class="product-price">¥${product.price.toFixed(2)}</p>
+                                <div class="flex items-center justify-between">
+                                    <div class="qty-box">
+                                        <button type="button" class="qty-btn" onclick="changeQuantity(${product.id}, -1)">-</button>
+                                        <input type="number" id="qty-${product.id}" value="1" min="1" class="qty-input" onchange="updateQuantity(${product.id})">
+                                        <button type="button" class="qty-btn" onclick="changeQuantity(${product.id}, 1)">+</button>
+                                    </div>
+                                    <button type="button" id="btn-${product.id}" class="btn-add ${isSelected(product.id) ? 'red' : 'blue'}" onclick="toggleProduct(${product.id}, '${product.name}', ${product.price})">
+                                        ${isSelected(product.id) ? '移除' : '加入'}
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `).join('');
